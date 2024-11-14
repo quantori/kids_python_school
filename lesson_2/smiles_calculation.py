@@ -1,4 +1,16 @@
+import csv
+
 from rdkit.Chem import MolFromSmiles, Descriptors
+
+
+def save_molecules(output_filename, records):
+    with open(output_filename, 'w', newline='') as csvfile:
+        fieldnames = records[0].keys()
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in records:
+            writer.writerow(row)
+
 
 all_smiles = [
     'CC(CCC(=O)N)CN',
@@ -9,25 +21,35 @@ all_smiles = [
     'CN(C)C1CCN(CC2=CC=C(C=C2C(F)(F)F)C(=O)NC2=CC=C(C)C(NC3=NC=CC(=N3)C3=CN=CN=C3)=C2)C1',
 ]
 
-smiles = all_smiles[0]
-mol = MolFromSmiles(smiles)
-mol_properties = {
-    'smiles': smiles,
-    'Molecular weight': Descriptors.MolWt(mol),
-    'logP': Descriptors.MolLogP(mol),
-    'H Acceptors': Descriptors.NumHAcceptors(mol),
-    'H Donors': Descriptors.NumHDonors(mol),
-}
-print(mol_properties)
-# TODO Добавить в словарь свойство lipinski pass, которое равно True, если:
-# - Молекулярный вес меньше 500
-# - logP меньше 5
-# - H Donors меньше 5
-# - H Acceptors меньше 10
 
-# TODO рассчитать свойства для всех молекул, а не только для первой
-#  и сохранить их в массив
+all_mol_properties = []
+for smiles in all_smiles:
+    mol = MolFromSmiles(smiles)
+    mol_properties = {
+        'smiles': smiles,
+        'Molecular weight': Descriptors.MolWt(mol),
+        'logP': Descriptors.MolLogP(mol),
+        'H Acceptors': Descriptors.NumHAcceptors(mol),
+        'H Donors': Descriptors.NumHDonors(mol),
+    }
 
-# TODO отфильтровать те молекулы, у которых значение lipinsli pass - True.
-#  Сохранить в отдельных массив
+    mol_properties['Lipinski'] = (
+        mol_properties['Molecular weight'] <= 500
+        and mol_properties['logP'] < 5
+        and mol_properties['H Acceptors'] < 10
+        and mol_properties['H Donors'] < 5
+    )
 
+    all_mol_properties.append(mol_properties)
+
+filtered_records = []
+for record in all_mol_properties:
+    if record['Lipinski']:
+        filtered_records.append(record)
+
+filtered_records = [
+    record for record in all_mol_properties
+    if record['Lipinski']
+]
+
+save_molecules('filtered_records.csv', filtered_records)
